@@ -57,6 +57,21 @@ public:
     bool isSerialPortReady(HardwareSerial *port) const;
     bool isI2CDevicePresent(uint8_t address) const;
 
+    // ADC Reading functions
+    uint16_t readWAS() const;
+    uint16_t readCurrent() const;
+    uint16_t readWork() const;
+    uint16_t readKickoutAnalog() const;
+
+    // ADC voltage conversion (12-bit ADC, 3.3V reference)
+    float readWASVoltage() const;
+    float readCurrentVoltage() const;
+    float readWorkVoltage() const;
+    float readKickoutVoltage() const;
+
+    // Debug output
+    void printADCDebug() const;
+
 private:
     // Buffer sizes
     static constexpr size_t GPS1_RX_BUFFER_SIZE = 128;

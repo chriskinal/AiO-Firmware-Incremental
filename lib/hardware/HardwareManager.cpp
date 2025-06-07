@@ -164,3 +164,67 @@ bool HardwareManager::isI2CDevicePresent(uint8_t address) const
     Wire.beginTransmission(address);
     return (Wire.endTransmission() == 0);
 }
+
+// ADC Reading Functions
+uint16_t HardwareManager::readWAS() const
+{
+    return analogRead(WAS_SENSOR_PIN);
+}
+
+uint16_t HardwareManager::readCurrent() const
+{
+    return analogRead(CURRENT_PIN);
+}
+
+uint16_t HardwareManager::readWork() const
+{
+    return analogRead(WORK_PIN);
+}
+
+uint16_t HardwareManager::readKickoutAnalog() const
+{
+    return analogRead(KICKOUT_A_PIN);
+}
+
+float HardwareManager::readWASVoltage() const
+{
+    return (readWAS() * 3.3f) / 4096.0f;
+}
+
+float HardwareManager::readCurrentVoltage() const
+{
+    return (readCurrent() * 3.3f) / 4096.0f;
+}
+
+float HardwareManager::readWorkVoltage() const
+{
+    return (readWork() * 3.3f) / 4096.0f;
+}
+
+float HardwareManager::readKickoutVoltage() const
+{
+    return (readKickoutAnalog() * 3.3f) / 4096.0f;
+}
+
+void HardwareManager::printADCDebug() const
+{
+    Serial.print("\r\n[ADC DEBUG] WAS(A15): ");
+    Serial.print(readWAS());
+    Serial.print(" (");
+    Serial.print(readWASVoltage(), 3);
+    Serial.print("V) | Current(A13): ");
+    Serial.print(readCurrent());
+    Serial.print(" (");
+    Serial.print(readCurrentVoltage(), 3);
+    Serial.print("V)");
+
+    Serial.print(" | Work(A17): ");
+    Serial.print(readWork());
+    Serial.print(" (");
+    Serial.print(readWorkVoltage(), 3);
+    Serial.print("V) | Kickout(A12): ");
+    Serial.print(readKickoutAnalog());
+    Serial.print(" (");
+    Serial.print(readKickoutVoltage(), 3);
+    Serial.print("V)");
+}

@@ -255,6 +255,10 @@ void CANManager::handleQueryResponse(const CAN_message_t &message)
 
 void CANManager::handleMotorDiagnostics(uint8_t errorByte)
 {
+    // Only print diagnostic messages if debug is enabled
+    if (!debugEnabled_)
+        return;
+
     if (bitRead(errorByte, 0))
     {
         Serial.print("\r\n- Keya motor disabled");
@@ -287,6 +291,10 @@ void CANManager::handleMotorDiagnostics(uint8_t errorByte)
 
 void CANManager::handleMotorStatus(uint8_t statusByte)
 {
+    // Only print status messages if debug is enabled
+    if (!debugEnabled_)
+        return;
+
     if (bitRead(statusByte, 0))
     {
         Serial.print("\r\n- Keya less phase");

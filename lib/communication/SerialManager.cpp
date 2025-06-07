@@ -3,6 +3,11 @@
 SerialManager::SerialManager(HardwareManager &hardwareManager, DiagnosticManager &diagnosticManager)
     : hardwareManager_(hardwareManager), diagnosticManager_(diagnosticManager), gps1_(nullptr), gps2_(nullptr), rtk_(nullptr), esp32_(nullptr), rs232_(nullptr), imu_(nullptr), usb1DTR_(false), usb2DTR_(false), prevUSB1DTR_(false), prevUSB2DTR_(false), gps1Baud_(HardwareManager::BAUD_GPS), gps2Baud_(HardwareManager::BAUD_GPS), gps1Usage_("GPS1"), gps2Usage_("GPS2"), rtkUsage_("RTK"), esp32Usage_("ESP32"), rs232Usage_("RS232"), bufferOverflowDetected_(false), bufferOverflowCheckEnabled_(false) // Disabled by default for testing
 {
+    // Initialize NMEA buffers
+    memset(gps1NmeaBuffer_, 0, sizeof(gps1NmeaBuffer_));
+    memset(gps2NmeaBuffer_, 0, sizeof(gps2NmeaBuffer_));
+    gps1NmeaIndex_ = 0;
+    gps2NmeaIndex_ = 0;
 }
 
 SerialManager::~SerialManager()
@@ -42,10 +47,152 @@ void SerialManager::update()
 {
     updateBridgeMode();
 
+    // Process NMEA data if debug is enabled
+    if (diagnosticManager_.getDebugFlag("nmea"))
+    {
+        processNMEAData();
+    }
+
     // Only check buffer overflow if enabled
     if (bufferOverflowCheckEnabled_)
     {
         checkBufferOverflow();
+    }
+}
+
+void SerialManager::processNMEAData()
+{
+    // Process GPS1 NMEA data
+    if (gps1_ && gps1_->available())
+    {
+        while (gps1_->available())
+        {
+            char c = gps1_->read();
+            stats_.gps1BytesReceived++;
+
+            if (processNMEAChar(c, gps1NmeaBuffer_, gps1NmeaIndex_, sizeof(gps1NmeaBuffer_), "GPS1"))
+            {
+                // Complete NMEA sentence received and printed
+                gps1NmeaIndex_ = 0;
+            }
+        }
+    }
+
+    // Process GPS2 NMEA data
+    if (gps2_ && gps2_->available())
+    {
+        while (gps2_->available())
+        {
+            char c = gps2_->read();
+            stats_.gps2BytesReceived++;
+
+            if (processNMEAChar(c, gps2NmeaBuffer_, gps2NmeaIndex_, sizeof(gps2NmeaBuffer_), "GPS2"))
+            {
+                // Complete NMEA sentence received and printed
+                gps2NmeaIndex_ = 0;
+            }
+        }
+    }
+}
+
+bool SerialManager::processNMEAChar(char c, char *buffer, uint16_t &index, uint16_t bufferSize, const char *source)
+{
+    // Add character to buffer if there's space
+    if (index < bufferSize - 1)
+    {
+        buffer[index++] = c;
+    }
+    else
+    {
+        // Buffer overflow - reset and start over
+        Serial.print("\r\n[NMEA ERROR] Buffer overflow on ");
+        Serial.print(source);
+        index = 0;
+        buffer[0] = c;
+        index = 1;
+        return false;
+    }
+
+    // Check for end of NMEA sentence
+    if (c == '\n')
+    {
+        buffer[index] = '\0'; // Null terminate
+
+        // Only print if it looks like a valid NMEA sentence
+        if (index > 5 && buffer[0] == '$')
+        {
+            printNMEASentence(buffer, source);
+        }
+
+        index = 0;
+        return true;
+    }
+
+    // Reset if line gets too long without proper ending
+    if (index >= bufferSize - 1)
+    {
+        index = 0;
+        return false;
+    }
+
+    return false;
+}
+
+void SerialManager::printNMEASentence(const char *sentence, const char *source)
+{
+    // Remove any trailing CR/LF for cleaner output
+    char cleanSentence[NMEA_BUFFER_SIZE];
+    strncpy(cleanSentence, sentence, sizeof(cleanSentence) - 1);
+    cleanSentence[sizeof(cleanSentence) - 1] = '\0';
+
+    // Remove trailing whitespace
+    int len = strlen(cleanSentence);
+    while (len > 0 && (cleanSentence[len - 1] == '\r' || cleanSentence[len - 1] == '\n' || cleanSentence[len - 1] == ' '))
+    {
+        cleanSentence[--len] = '\0';
+    }
+
+    // Only print non-empty sentences
+    if (len > 5)
+    {
+        Serial.print("\r\n[NMEA ");
+        Serial.print(source);
+        Serial.print("] ");
+        Serial.print(cleanSentence);
+
+        // Add sentence type identification for common messages
+        if (strncmp(sentence, "$GNGGA", 6) == 0 || strncmp(sentence, "$GPGGA", 6) == 0)
+        {
+            Serial.print(" (Position Fix)");
+        }
+        else if (strncmp(sentence, "$GNVTG", 6) == 0 || strncmp(sentence, "$GPVTG", 6) == 0)
+        {
+            Serial.print(" (Course/Speed)");
+        }
+        else if (strncmp(sentence, "$GNRMC", 6) == 0 || strncmp(sentence, "$GPRMC", 6) == 0)
+        {
+            Serial.print(" (Recommended Minimum)");
+        }
+        else if (strncmp(sentence, "$GNGSV", 6) == 0 || strncmp(sentence, "$GPGSV", 6) == 0)
+        {
+            Serial.print(" (Satellites in View)");
+        }
+        else if (strncmp(sentence, "$GNGSA", 6) == 0 || strncmp(sentence, "$GPGSA", 6) == 0)
+        {
+            Serial.print(" (DOP and Active Satellites)");
+        }
+        else if (strncmp(sentence, "$PSTM", 5) == 0)
+        {
+            Serial.print(" (Proprietary)");
+        }
+        else if (strncmp(sentence, "$PUBX", 5) == 0)
+        {
+            Serial.print(" (u-blox Proprietary)");
+        }
+        else
+        {
+            Serial.print(" (Other)");
+        }
     }
 }
 

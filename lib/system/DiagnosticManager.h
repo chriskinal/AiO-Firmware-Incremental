@@ -17,6 +17,9 @@ public:
     // Initialization
     void begin();
 
+    // CAN Manager reference (using void pointer to avoid circular dependency)
+    void setCANManager(void *canManager);
+
     // CPU usage tracking
     void registerCpuUsage(const char *name, ProcessorUsage *usage);
     void printCpuUsage();
@@ -74,6 +77,9 @@ private:
     void processSerialCommand(char command);
     void printSystemInfo();
     void printHelp();
+
+    // CAN Manager reference (void pointer to avoid circular dependency)
+    void *canManager_;
 
     // Helper functions
     void printCpuPercent(uint32_t time);

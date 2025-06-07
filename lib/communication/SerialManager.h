@@ -129,12 +129,24 @@ private:
     bool bufferOverflowDetected_;
     bool bufferOverflowCheckEnabled_;
 
+    // NMEA processing
+    static constexpr size_t NMEA_BUFFER_SIZE = 256;
+    char gps1NmeaBuffer_[NMEA_BUFFER_SIZE];
+    char gps2NmeaBuffer_[NMEA_BUFFER_SIZE];
+    uint16_t gps1NmeaIndex_;
+    uint16_t gps2NmeaIndex_;
+
     // Helper functions
     void initializeSerialPorts();
     void updateBaudRates();
     void handleBridgeMode();
     void updateStatistics(HardwareSerial *port, size_t bytes, bool transmitted);
     bool isBufferNearFull(HardwareSerial *port) const;
+
+    // NMEA processing functions
+    void processNMEAData();
+    bool processNMEAChar(char c, char *buffer, uint16_t &index, uint16_t bufferSize, const char *source);
+    void printNMEASentence(const char *sentence, const char *source);
 };
 
 #endif // SERIAL_MANAGER_H

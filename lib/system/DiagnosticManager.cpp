@@ -1,8 +1,13 @@
 #include "DiagnosticManager.h"
 
+// External function declarations - these will be implemented in main.cpp
+extern void toggleKeyaDebug();
+extern void printCANStatus();
+extern void printCANStatusInSystemInfo();
+
 // DiagnosticManager implementation
 DiagnosticManager::DiagnosticManager()
-    : cpuUsageCount_(0), statsCount_(0), loopCounter_(0), lastPrintTime_(0), usbSerialActive_(false)
+    : cpuUsageCount_(0), statsCount_(0), loopCounter_(0), lastPrintTime_(0), usbSerialActive_(false), canManager_(nullptr)
 {
     // Initialize arrays
     for (uint8_t i = 0; i < MAX_CPU_USAGE_TASKS; i++)
@@ -25,6 +30,11 @@ void DiagnosticManager::begin()
 {
     Serial.print("\r\n- Diagnostic Manager initialization");
     usbSerialActive_ = true;
+}
+
+void DiagnosticManager::setCANManager(void *canManager)
+{
+    canManager_ = canManager;
 }
 
 void DiagnosticManager::registerCpuUsage(const char *name, ProcessorUsage *usage)
@@ -128,6 +138,11 @@ void DiagnosticManager::processSerialCommand(char command)
         Serial.print(debugFlags.pwmDebug ? "ON" : "OFF");
         break;
 
+    case 'k':
+        // Call external function to toggle Keya debug
+        toggleKeyaDebug();
+        break;
+
     case 's':
         Serial.print("\r\n=== Current Statistics ===");
 
@@ -162,6 +177,9 @@ void DiagnosticManager::processSerialCommand(char command)
         Serial.print("\r\nFree RAM: ");
         Serial.print(getFreeRAM());
         Serial.print(" bytes");
+
+        // Show CAN Manager status if available (call external function)
+        printCANStatus();
 
         debugFlags.printStats = !debugFlags.printStats;
         Serial.print("\r\nAuto stats display: ");
@@ -348,6 +366,9 @@ void DiagnosticManager::printSystemInfo()
     Serial.print("\r\nLoop Frequency: ");
     Serial.print(getLoopFrequency());
     Serial.print("kHz");
+
+    // Print CAN status through external function
+    printCANStatusInSystemInfo();
 }
 
 void DiagnosticManager::printHelp()
@@ -357,6 +378,7 @@ void DiagnosticManager::printHelp()
     Serial.print("\r\na - Toggle ADC debug");
     Serial.print("\r\nn - Toggle NMEA debug");
     Serial.print("\r\np - Toggle PWM debug");
+    Serial.print("\r\nk - Toggle Keya CAN debug");
     Serial.print("\r\ns - Toggle statistics display");
     Serial.print("\r\nr - Reset statistics");
     Serial.print("\r\nR - Reboot system");
@@ -367,7 +389,7 @@ void DiagnosticManager::printHelp()
 
 bool DiagnosticManager::isValidDebugCommand(char command) const
 {
-    const char validCommands[] = "canpsrRhi?b"; // Added 'b' to valid commands
+    const char validCommands[] = "canpsrRhi?bk"; // Added 'k' to valid commands
     for (uint8_t i = 0; i < strlen(validCommands); i++)
     {
         if (command == validCommands[i])
