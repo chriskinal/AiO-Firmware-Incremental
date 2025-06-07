@@ -54,9 +54,20 @@ void DiagnosticManager::updateSystemStats()
     if (updateTimer_ > PRINT_INTERVAL)
     {
         if (debugFlags.printCpuUsages)
+        {
+            Serial.print("\r\n[AUTO] CPU Usage Report:");
             printCpuUsage();
+        }
         if (debugFlags.printStats)
+        {
+            Serial.print("\r\n[AUTO] Statistics Report:");
             printStats();
+            Serial.print("\r\nLoop frequency: ");
+            Serial.print(getLoopFrequency());
+            Serial.print("kHz, CPU temp: ");
+            Serial.print(getCpuTemperature());
+            Serial.print("°C");
+        }
 
         updateTimer_ = 0;
         loopCounter_ = 0;
@@ -118,8 +129,42 @@ void DiagnosticManager::processSerialCommand(char command)
         break;
 
     case 's':
+        Serial.print("\r\n=== Current Statistics ===");
+
+        // Show DiagnosticManager stats if any are registered
+        if (statsCount_ > 0)
+        {
+            printStats();
+        }
+        else
+        {
+            Serial.print("\r\nNo DiagnosticManager stats registered");
+        }
+
+        // Show CPU usage stats if any are registered
+        if (cpuUsageCount_ > 0)
+        {
+            Serial.print("\r\n--- CPU Usage ---");
+            printCpuUsage();
+        }
+        else
+        {
+            Serial.print("\r\nNo CPU usage stats registered");
+        }
+
+        Serial.print("\r\n--- System Info ---");
+        Serial.print("\r\nLoop frequency: ");
+        Serial.print(getLoopFrequency());
+        Serial.print("kHz");
+        Serial.print("\r\nCPU temperature: ");
+        Serial.print(getCpuTemperature());
+        Serial.print("°C");
+        Serial.print("\r\nFree RAM: ");
+        Serial.print(getFreeRAM());
+        Serial.print(" bytes");
+
         debugFlags.printStats = !debugFlags.printStats;
-        Serial.print("\r\nStats debug: ");
+        Serial.print("\r\nAuto stats display: ");
         Serial.print(debugFlags.printStats ? "ON" : "OFF");
         break;
 
